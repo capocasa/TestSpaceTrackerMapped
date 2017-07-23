@@ -3,11 +3,11 @@
 // to formal unit tests. They should be, if it proves necessary for
 // reliability.
 
-// Saving and loading continuous mode SpaceTracker
+// Saving and loading mapped mode SpaceTracker
 (fork{
-  // Test continuousTo
+  // Test fromMapped
   s.bootSync;
-  b=SpaceTracker.continuousAlloc(s, 5, 5, [2,3,4]);
+  b=Buffer.allocMapped(s, 5, 5, [2,3,4]);
   s.sync;
   b.do {|c, i|
     c[0].setn(0, [
@@ -23,13 +23,13 @@
 
   //SpaceTracker.bufferTo("/tmp/sc/foo.note", b.collect{|b|b[0]}, 3);
   
-  SpaceTracker.continuousTo("/tmp/sc/foo.note", b, 3);
+  SpaceTracker.fromMapped("/tmp/sc/foo.note", b, 3);
   s.sync;
-  c=SpaceTracker.toContinuous(s, "/tmp/sc/foo.note");
+  c=SpaceTracker.toMapped(s, "/tmp/sc/foo.note");
 })
 
-c=SpaceTracker.toContinuous(s, "/tmp/sc/foo.note");
-SpaceTracker.continuousTo("/tmp/sc/foo.note", b, 30);
+c=SpaceTracker.toMapped(s, "/tmp/sc/foo.note");
+SpaceTracker.fromMapped("/tmp/sc/foo.note", b, 30);
 c
 c[1][0].getn(0,30){|m|m.postln}
 b[2][0].getn(0,30){|m|m.postln}
@@ -39,19 +39,25 @@ b.collect{|b|b[0].set(0,0.1)}
 (
   z.free;
   z={
-    var controls=PlayBufSC.kr(5, b);
+    var controls=PlayBufM.kr(5, b);
     controls.poll;
     Out.kr(0,0);
   }.play;
 )
 
 // Testing regular SpaceTracker
-SpaceTracker.bufferTo("/tmp/sc/bar.note", d, 30);
+d=b.collect{|x|x[0]};
 
-// Testing continuous mode recording and playback more isolatedly
+d=SpaceTracker.alloc(s, 4)
+
+SpaceTracker.fromBuffer("/tmp/sc/bar.note", SpaceTracker.alloc(s,4), 30);
+
+SpaceTracker("/tmp/sc/bar.note").fromBuffer(d,30);
+
+// Testing mapped mode recording and playback more isolatedly
 (fork{
   n.free;
-  n={PlayBufSC.kr(5,b)[0][4].poll}.play; 
+  n={PlayBufM.kr(5,b)[0][4].poll}.play; 
 })
 
 (fork{
@@ -68,16 +74,32 @@ SpaceTracker.bufferTo("/tmp/sc/bar.note", d, 30);
 
 z[0].getn(0,30){|m|m.postln};
 
+// Test record
 (fork{
   o.free;
   o={
     var c;
-    c = StControl.kr(\voice, 5, 5);
+    c = ShapedControl.kr(\voice, 5, 5);
     RecordBufS.kr(c, z);
   }.play; 
   m.free;
   m=ShapedMIDIC(o,[1,2,3,4,5],[\bend, 74, \touch]);
 })
+
+// Test record (using JackMidi with QuNeo)
+(fork{
+  s.bootSync;
+  z.free;
+  z=SpaceTracker.alloc(s, 5, 5);
+  o.free;
+  o={
+    var c;
+    c = JackMIDIIn.kr(1, notes:Array.series(5,36), controls:Array.series(15,23).clump(3).collect{|x|`x},polytouch:false);
+    RecordBufT.kr(c, z);
+  }.play; 
+  {PlayBufT.kr(5,z).poll}.play
+})
+
 
 (
   u.free;
@@ -86,7 +108,8 @@ z[0].getn(0,30){|m|m.postln};
   }.play;
 )
 
-// Testing the max number for a continuosuly rising phasor (part of RecordBufSC)
+
+// Testing the max number for a continuosuly rising phasor (part of RecordBufM)
 (
 o.free;
 o={
@@ -96,19 +119,19 @@ o={
 
 b[0][0].getn(0,30){|m|m.postln};
 
-// Main continous mode testing; save and load, record, playback, and a nice sound
-// for playing the Linnstrument on, the main reason to introduce continuous mode.
+// Main mapped mode testing; save and load, record, playback, and a nice sound
+// for playing the Linnstrument on, the main reason to introduce mapped mode.
 
-SpaceTracker.continuousTo("/tmp/sc/foo.note", b, 30);
-SpaceTracker.continuousTo("/tmp/sc/foo.note", c, 30);
+SpaceTracker.fromMapped("/tmp/sc/foo.note", b, 30);
+SpaceTracker.fromMapped("/tmp/sc/foo.note", c, 30);
 (fork{
   Server.internal;
   s.bootSync;
   MIDIIn.connectAll;
   b.free;
-  b=SpaceTracker.continuousAlloc(s, 5, 5, [2,3,4]);
+  b=Buffer.allocMapped(s, 5, 5, [2,3,4]);
   c.free;
-  c=SpaceTracker.toContinuous(s, "/tmp/sc/foo.note");
+  c=SpaceTracker.toMapped(s, "/tmp/sc/foo.note");
   s.sync;
 
   d = SpaceTracker.alloc(s, 5, 5);
@@ -120,15 +143,18 @@ SpaceTracker.continuousTo("/tmp/sc/foo.note", c, 30);
   s.sync;
   \done.postln;
 })
+
+
+
 (
   x.free;
   x={
     var controls, voice, frames;
 
     controls = StControl.kr(\voice, 5, 5);
-    frames = RecordBufSC.kr(controls, b);
-    //controls = PlayBufSC.kr(5, b);
-    //controls = PlayBufSC.kr(5, c);
+    frames = RecordBufM.kr(controls, b);
+    //controls = PlayBufM.kr(5, b);
+    //controls = PlayBufM.kr(5, c);
     //frames = RecordBufS.kr(controls, b.collect{|b|b[0]});
     //frames.poll;
     //controls = PlayBufS.kr(5, b.collect{|b|b[0]});
@@ -187,11 +213,11 @@ SpaceTracker.continuousTo("/tmp/sc/foo.note", c, 30);
 )
 
 z.free;
-z.free;z={PlayBufSC.kr(5, b).poll}.play;
-z.free;z={PlayBufSC.kr(5, c).poll}.play;
+z.free;z={PlayBufM.kr(5, b).poll}.play;
+z.free;z={PlayBufM.kr(5, c).poll}.play;
 
 // Testing BufSet, a UGen to set the buffer sample rate
-// (this is normally only possible when reading a file,
+// (this is normally only possible when reading a file),
 // see https://github.com/supercollider/supercollider/issues/1952
 
 (fork{
@@ -259,5 +285,78 @@ b.set(0, 0);
   b.do {|b| b.set(0, 1, 1, 60)};
   s.sync;
   SpaceTracker.bufferTo("/tmp/foo.note", b);
+})
+
+
+
+// Testing with the QuNeo and JackMIDIIn:record
+(fork{
+  s.bootSync;
+  m.free;
+  m=Buffer.allocMapped(s,5,5,[2,3,4]);
+  x.free;
+  "jack_connect \"`jack_lsp | grep midi | grep out | grep -v Through`\" JackMIDIUGens:midi_in".systemCmd;
+  x={
+    var c;
+    c=JackMIDIIn.kr(1, notes:Array.series(5,36), controls:Array.series(15,23).clump(3).collect{|x|`x},polytouch:false);
+    
+    RecordBufM.kr(c, m);
+    
+    c.collect{|c|
+      var n,v,p,x,y;
+      #n,v,p,x,y=c;
+      RLPF.ar(Saw.ar(Latch.kr(n,n).midicps,(p/128).lag),y/128*350+100,x/128*0.25+0.125)*4;
+    }.sum!2;
+
+
+  }.play;
+})
+
+m[1][2].getn(0,1000,{|a|a.pairsDo{|a,b,i| if (a==0) {i.postln;}  }})
+
+SpaceTracker.fromMapped("/tmp/mapped.note", m, 30);
+
+SpaceTracker.fromMapped("/tmp/mapped.note", m, 30);
+
+//playback
+(fork{
+  s.bootSync;
+  //m.free;m=SpaceTracker.toMapped(s,"/tmp/mapped.note");s.sync;
+  x.free;
+  x={
+    var c;
+    c=PlayBufM.kr(5,m).poll;
+    c.collect{|c|
+      var n,v,p,x,y;
+      #n,v,p,x,y=c;
+      RLPF.ar(Saw.ar(Latch.kr(n,n).midicps,(p/128).lag),y/128*350+100,x/128*0.25+0.125)*4;
+    }.sum!2;
+  }.play;
+})
+
+//playback without mapped
+(fork{
+  s.bootSync;
+  n = m.collect{|b|b[0]};
+  x.free;
+  x={
+    var c;
+    c=PlayBufT.kr(5,n).collect{|c| c[0..1]++(c[0]>0*64!3) }.poll; // dummy controls
+    c.collect{|c|
+      var n,v,p,x,y;
+      #n,v,p,x,y=c;
+      RLPF.ar(Saw.ar(Latch.kr(n,n).midicps,(p/128).lag),y/128*350+100,x/128*0.25+0.125)*4;
+    }.sum;
+  }.play;
+})
+
+
+// Verify PlayBufT for empty buffers
+(fork {
+  s.bootSync;
+  b=Buffer.alloc(s, 128,2);
+  {
+    PlayBufT.kr(1,b,1,0,1).poll;
+  }.play
 })
 
