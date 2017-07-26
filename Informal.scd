@@ -292,10 +292,10 @@ b.set(0, 0);
 // Testing with the QuNeo and JackMIDIIn:record
 (fork{
   s.bootSync;
+  "jack_connect \"`jack_lsp | grep midi | grep out | grep -v Through`\" JackMIDIUGens:midi_in".systemCmd;
   m.free;
   m=Buffer.allocMapped(s,5,5,[2,3,4]);
   x.free;
-  "jack_connect \"`jack_lsp | grep midi | grep out | grep -v Through`\" JackMIDIUGens:midi_in".systemCmd;
   x={
     var c;
     c=JackMIDIIn.kr(1, notes:Array.series(5,36), controls:Array.series(15,23).clump(3).collect{|x|`x},polytouch:false);
@@ -312,16 +312,40 @@ b.set(0, 0);
   }.play;
 })
 
-m[1][2].getn(0,1000,{|a|a.pairsDo{|a,b,i| if (a==0) {i.postln;}  }})
+"rm -rf /tmp/foo".systemCmd; m.writeMapped("/tmp/foo");
+m.writeMapped("/tmp/foo");
+(fork {
+  s.sync;
+  m.do {|m|
+    m[0].writeTimed("/tmp/a.aiff","aiff","float");
+    s.sync;
+    g=SoundFile.openRead("/tmp/a.aiff");
+    g.toCSV("/tmp/a.csv");
+    g.close;
+    "cat /tmp/a.csv | head".unixCmdGetStdOut.postln;
+  };
+})
 
-SpaceTracker.fromMapped("/tmp/mapped.note", m, 30);
+s.boot;
+b=Buffer.allocTimed(s, 1, 1);
+b=Buffer.alloc(s,128);
+b.set(0,1,1,1,2,1,3,1);
+b.writeTimed("/tmp/a.aif") 
+b.numFrames
 
-SpaceTracker.fromMapped("/tmp/mapped.note", m, 30);
+//m[1][2].getn(0,1000,{|a|a.pairsDo{|a,b,i| if (a==0) {i.postln;}  }})
+
 
 //playback
 (fork{
   s.bootSync;
-  //m.free;m=SpaceTracker.toMapped(s,"/tmp/mapped.note");s.sync;
+  //m.free;m=SpaceTracker.toMapped(s,"/tmp/foo");s.sync;
+  m.free;m=Buffer.readMapped(s,"/tmp/foo");s.sync;
+})
+
+m.do{|m|m[1..].pairsDo{|a,b|b.numFrames.postln}};
+m.postln;
+(fork{
   x.free;
   x={
     var c;
@@ -329,10 +353,26 @@ SpaceTracker.fromMapped("/tmp/mapped.note", m, 30);
     c.collect{|c|
       var n,v,p,x,y;
       #n,v,p,x,y=c;
+//      p=x=y=(n>0)*64;
       RLPF.ar(Saw.ar(Latch.kr(n,n).midicps,(p/128).lag),y/128*350+100,x/128*0.25+0.125)*4;
     }.sum!2;
   }.play;
 })
+
+m[1][6].numFrames
+
+(fork{
+s.bootSync;
+w=SoundFile("/tmp/foo.aiff");
+w.headerFormat="aiff";
+w.sampleFormat="float";
+w.openWrite;
+w.writeData(FloatArray[1,2,3,4,5]);
+w.close;
+b=Buffer.readTimed(s, w.path);
+})
+
+Buffer.readTimed(s, "/tmp/m606717946.aiff");
 
 //playback without mapped
 (fork{
@@ -359,4 +399,23 @@ SpaceTracker.fromMapped("/tmp/mapped.note", m, 30);
     PlayBufT.kr(1,b,1,0,1).poll;
   }.play
 })
+
+2**31-1
+
+(2**32) 
+
+(
+  var path="/tmp/foo", channels=[2,3,4];
+  File.use(path+/+"meta", "w") {|f|
+    f.write(channels.join(" "));
+  };
+)
+
+// Test read
+
+
+
+(
+Buffer.readMapped(s, "/tmp/foo");
+)
 
