@@ -413,9 +413,17 @@ Buffer.readTimed(s, "/tmp/m606717946.aiff");
 
 // Test read
 
-
-
-(
-Buffer.readMapped(s, "/tmp/foo");
-)
+(fork {
+  s.bootSync;
+  b = Buffer.allocTimed(s);
+  s.sync;
+  b.sendCollection([1,32,0.5,33,1,34]);
+  s.sync;
+  b.getn(0,6,{|c|c.postln});
+  s.sync;
+  x.free;
+  x={
+    BufFramesT.kr(b, 1, 0.25, 3.25, 0).poll; 
+  }.play;
+})
 
