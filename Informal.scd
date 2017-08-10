@@ -423,7 +423,53 @@ Buffer.readTimed(s, "/tmp/m606717946.aiff");
   s.sync;
   x.free;
   x={
-    BufFramesT.kr(b, 1, 0.25, 3.25, 0).poll; 
+    BufFramesT.kr(b, 1, 0, 0, 2).poll; 
   }.play;
+  b.writeTimed("/tmp/a.aiff", "aiff", 0, 0);
+  s.sync;
+  g=SoundFile.openRead("/tmp/a.aiff");
+  g.toCSV("/tmp/a.csv");
+  g.close;
+  "cat /tmp/a.csv | head".unixCmdGetStdOut.postln;
 })
 
+// Test write
+
+(fork {
+  s.bootSync;
+  b=Buffer.readTimed(s, "/tmp/a.aiff", 0.75, 1);
+  s.sync;
+  s.sync;
+  s.sync;
+  b.getn(0,6,{|c|c.postln})
+})
+
+
+
+
+
+(
+TestBufFramesT.run;
+
+UnitTest.runTest("TestBufFramesT:test_shavecenter");
+
+UnitTest.runTest("TestBufFramesT:test_prepost");
+
+UnitTest.runTest("TestBufFramesT:test_pre_onlast");
+UnitTest.runTest("TestBufFramesT:test_pre_onsecondlast");
+
+UnitTest.runTest("TestBufFramesT:test_multichannel_long");
+
+
+)
+
+(
+(10+20).rand.collect{[10.0.rand,127.rand,127.rand,127.rand]}.flat.asCompileString;
+)
+
+(
+a=[ 9.1337192058563, 17, 20, 97, 6.399017572403, 37, 101, 92, 4.0919506549835, 71, 69, 97, 4.0838253498077, 27, 6, 114, 8.4694528579712, 37, 47, 3, 0.12431740760803, 91, 69, 25, 8.5956215858459, 1, 2, 33, 1.5181195735931, 90, 18, 96, 5.3417408466339, 95, 101, 22, 5.9933578968048, 64, 58, 43, 6.6469585895538, 49, 120, 56, 9.3143355846405, 50, 81, 117, 2.033303976059, 118, 1, 35, 1.2936115264893, 118, 11, 102, 6.7575621604919, 27, 63, 124, 4.3031942844391, 113, 44, 88, 4.9205708503723, 19, 102, 4, 5.390852689743, 53, 20, 14, 9.8089456558228, 81, 94, 25, 4.6411645412445, 80, 83, 107, 2.2814118862152, 15, 92, 80, 2.0842516422272, 45, 82, 90, 7.6886701583862, 67, 87, 60, 9.4486975669861, 15, 74, 87, 5.8108699321747, 98, 99, 119, 3.7641739845276, 112, 38, 48 ];
+
+a.unlace(4).first.sum
+
+)
