@@ -292,7 +292,7 @@ b.set(0, 0);
 // Testing with the QuNeo and JackMIDIIn:record
 (fork{
   s.bootSync;
-  "jack_connect \"`jack_lsp | grep midi | grep out | grep -v Through`\" JackMIDIUGens:midi_in".systemCmd;
+  "jack_connect \"`jack_lsp | grep midi | grep capture`\" JackMIDIUGens:midi_in".systemCmd;
   m.free;
   m=Buffer.allocMapped(s,5,5,[2,3,4]);
   x.free;
@@ -308,21 +308,23 @@ b.set(0, 0);
       RLPF.ar(Saw.ar(Latch.kr(n,n).midicps,(p/128).lag),y/128*350+100,x/128*0.25+0.125)*4;
     }.sum!2;
 
-
   }.play;
 })
 
-"rm -rf /tmp/foo".systemCmd; m.writeMapped("/tmp/foo");
+"rm -rf /tmp/foo ; rm -f /tmp/map*".systemCmd; m.writeMapped("/tmp/foo");
 m.writeMapped("/tmp/foo");
 (fork {
   s.sync;
-  m.do {|m|
-    m[0].writeTimed("/tmp/a.aiff","aiff","float");
+  m.do {|m,i|
+    "poly %".format(i).postln;
+    m[0].write("/tmp/a.aiff");
     s.sync;
     g=SoundFile.openRead("/tmp/a.aiff");
     g.toCSV("/tmp/a.csv");
     g.close;
     "cat /tmp/a.csv | head".unixCmdGetStdOut.postln;
+    File.delete("/tmp/a.csv");
+    File.delete("/tmp/a.aiff");
   };
 })
 
@@ -336,20 +338,37 @@ b.numFrames
 //m[1][2].getn(0,1000,{|a|a.pairsDo{|a,b,i| if (a==0) {i.postln;}  }})
 
 
-//playback
+//read
 (fork{
   s.bootSync;
   //m.free;m=SpaceTracker.toMapped(s,"/tmp/foo");s.sync;
   m.free;m=Buffer.readMapped(s,"/tmp/foo");s.sync;
 })
 
+b.loadToFloatArray(action:{|x|x.postln;});
+m[1][4].loadToFloatArray(action:{|x|x.postln;});
+
+m[1][4].numFrames;
+m[1][2].numChannels;
+
+b=Buffer.alloc(s, 234/2,2)
+
+m[1][4].copyData(b);
+
+(
+{PlayBufT.kr(1,b).poll}.play;
+)
+
+m[1][2]
+
+//playback
 m.do{|m|m[1..].pairsDo{|a,b|b.numFrames.postln}};
 m.postln;
 (fork{
   x.free;
   x={
     var c;
-    c=PlayBufM.kr(5,m).poll;
+    c=PlayBufM.kr(5,m);
     c.collect{|c|
       var n,v,p,x,y;
       #n,v,p,x,y=c;
@@ -359,20 +378,31 @@ m.postln;
   }.play;
 })
 
-m[1][6].numFrames
 
-(fork{
-s.bootSync;
-w=SoundFile("/tmp/foo.aiff");
-w.headerFormat="aiff";
-w.sampleFormat="float";
-w.openWrite;
-w.writeData(FloatArray[1,2,3,4,5]);
-w.close;
-b=Buffer.readTimed(s, w.path);
+(
+  m.collect {|m,i|
+    c=List[];
+    m[1..].pairsDo{|a,m|c.add(m.numFrames)};
+    c.asArray;
+  };
+)
+
+(fork {
+  s.sync;
+  m.do {|m,i|
+    "poly %".format(i).postln;
+    m[6].write("/tmp/a.aiff");
+      s.sync;
+      g=SoundFile.openRead("/tmp/a.aiff");
+      if (g.notNil) {
+      g.toCSV("/tmp/a.csv");
+      g.close;
+      "cat /tmp/a.csv | head".unixCmdGetStdOut.postln;
+    };
+    File.delete("/tmp/a.csv");
+    File.delete("/tmp/a.aiff");
+  };
 })
-
-Buffer.readTimed(s, "/tmp/m606717946.aiff");
 
 //playback without mapped
 (fork{
@@ -386,90 +416,17 @@ Buffer.readTimed(s, "/tmp/m606717946.aiff");
       var n,v,p,x,y;
       #n,v,p,x,y=c;
       RLPF.ar(Saw.ar(Latch.kr(n,n).midicps,(p/128).lag),y/128*350+100,x/128*0.25+0.125)*4;
-    }.sum;
+    }.sum!2;
   }.play;
 })
 
 
-// Verify PlayBufT for empty buffers
-(fork {
-  s.bootSync;
-  b=Buffer.alloc(s, 128,2);
-  {
-    PlayBufT.kr(1,b,1,0,1).poll;
-  }.play
-})
+TestBufferExtS.run;
 
-2**31-1
+UnitTest.runTest("TestBufferExtS:test_alloc");
+UnitTest.runTest("TestBufferExtS:test_detect");
+UnitTest.runTest("TestBufferExtS:test_write");
 
-(2**32) 
+TestPlayBufT.run;
+TestRecordBufT.run;
 
-(
-  var path="/tmp/foo", channels=[2,3,4];
-  File.use(path+/+"meta", "w") {|f|
-    f.write(channels.join(" "));
-  };
-)
-
-// Test read
-
-(fork {
-  s.bootSync;
-  b = Buffer.allocTimed(s);
-  s.sync;
-  b.sendCollection([1,32,0.5,33,1,34]);
-  s.sync;
-  b.getn(0,6,{|c|c.postln});
-  s.sync;
-  x.free;
-  x={
-    BufFramesT.kr(b, 1, 0, 0, 2).poll; 
-  }.play;
-  b.writeTimed("/tmp/a.aiff", "aiff", 0, 0);
-  s.sync;
-  g=SoundFile.openRead("/tmp/a.aiff");
-  g.toCSV("/tmp/a.csv");
-  g.close;
-  "cat /tmp/a.csv | head".unixCmdGetStdOut.postln;
-})
-
-// Test write
-
-(fork {
-  s.bootSync;
-  b=Buffer.readTimed(s, "/tmp/a.aiff", 0.75, 1);
-  s.sync;
-  s.sync;
-  s.sync;
-  b.getn(0,6,{|c|c.postln})
-})
-
-
-
-
-
-(
-TestBufFramesT.run;
-
-UnitTest.runTest("TestBufFramesT:test_shavecenter");
-
-UnitTest.runTest("TestBufFramesT:test_prepost");
-
-UnitTest.runTest("TestBufFramesT:test_pre_onlast");
-UnitTest.runTest("TestBufFramesT:test_pre_onsecondlast");
-
-UnitTest.runTest("TestBufFramesT:test_multichannel_long");
-
-
-)
-
-(
-(10+20).rand.collect{[10.0.rand,127.rand,127.rand,127.rand]}.flat.asCompileString;
-)
-
-(
-a=[ 9.1337192058563, 17, 20, 97, 6.399017572403, 37, 101, 92, 4.0919506549835, 71, 69, 97, 4.0838253498077, 27, 6, 114, 8.4694528579712, 37, 47, 3, 0.12431740760803, 91, 69, 25, 8.5956215858459, 1, 2, 33, 1.5181195735931, 90, 18, 96, 5.3417408466339, 95, 101, 22, 5.9933578968048, 64, 58, 43, 6.6469585895538, 49, 120, 56, 9.3143355846405, 50, 81, 117, 2.033303976059, 118, 1, 35, 1.2936115264893, 118, 11, 102, 6.7575621604919, 27, 63, 124, 4.3031942844391, 113, 44, 88, 4.9205708503723, 19, 102, 4, 5.390852689743, 53, 20, 14, 9.8089456558228, 81, 94, 25, 4.6411645412445, 80, 83, 107, 2.2814118862152, 15, 92, 80, 2.0842516422272, 45, 82, 90, 7.6886701583862, 67, 87, 60, 9.4486975669861, 15, 74, 87, 5.8108699321747, 98, 99, 119, 3.7641739845276, 112, 38, 48 ];
-
-a.unlace(4).first.sum
-
-)
