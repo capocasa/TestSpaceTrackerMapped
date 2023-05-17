@@ -298,14 +298,14 @@ b.set(0, 0);
   x.free;
   x={
     var c;
-    c=JackMIDIIn.kr(1, notes:Array.series(5,36), controls:Array.series(15,23).clump(3).collect{|x|`x},polytouch:false);
+    c=JackMIDIIn.ar(1, notes:Array.series(5,36), controls:Array.series(15,23).clump(3).collect{|x|`x},polytouch:false);
     
-    RecordBufM.kr(c, m);
+    RecordBufM.ar(c, m);
     
     c.collect{|c|
       var n,v,p,x,y;
       #n,v,p,x,y=c;
-      RLPF.ar(Saw.ar(Latch.kr(n,n).midicps,(p/128).lag),y/128*350+100,x/128*0.25+0.125)*4;
+      RLPF.ar(Saw.ar(Latch.ar(n,n).midicps,(p/128).lag),y/128*350+100,x/128*0.25+0.125)*4;
     }.sum!2;
 
   }.play;
@@ -368,12 +368,12 @@ m.postln;
   x.free;
   x={
     var c;
-    c=PlayBufM.kr(5,m);
+    c=PlayBufM.ar(m);
     c.collect{|c|
       var n,v,p,x,y;
       #n,v,p,x,y=c;
 //      p=x=y=(n>0)*64;
-      RLPF.ar(Saw.ar(Latch.kr(n,n).midicps,(p/128).lag),y/128*350+100,x/128*0.25+0.125)*4;
+      RLPF.ar(Saw.ar(Latch.ar(n,n).midicps,(p/128).lag),y/128*350+100,x/128*0.25+0.125)*4;
     }.sum!2;
   }.play;
 })
